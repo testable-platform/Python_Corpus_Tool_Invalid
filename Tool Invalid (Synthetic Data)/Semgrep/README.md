@@ -1,42 +1,67 @@
 # Semgrep
 
-Boundary-version matrix for **Semgrep** -- the deliberate inverse of
-`Python-Tools-Clean`'s `Semgrep` folder. Same methodology (2 earliest
-supported versions, 1 middle, 2 end/latest), same five-version layout, but
-every fixture here was engineered so Semgrep genuinely finds something, not
-nothing.
+**py3.14 boundary variant -- measured (interpreter 3.14.0rc2).** semgrep
+1.178.0 actually installed and invoked against this folder. Identical result
+to py3.11/py3.13: all 10 rule IDs fire, exit code 1.
 
-| Version | Status |
-|---|---|
-| py3.6 | CODE-ONLY (not run against a live interpreter) |
-| py3.7 | CODE-ONLY (not run against a live interpreter) |
-| py3.11 | MEASURED FINDING |
-| py3.13 | MEASURED FINDING |
-| py3.14 | MEASURED FINDING |
+**Divergence from the sibling clean corpus, measured not assumed:** that
+corpus's own py3.14 build recorded semgrep 1.178.0 crashing at import under
+3.14.0rc2 (pydantic 2.13.5's `typing._eval_type(..., prefer_fwd_module=True)`
+call tripping a renamed CPython keyword argument). That crash did not
+reproduce in this build environment -- semgrep imported and ran cleanly here.
 
-3.6 and 3.7 are code-only (see their own READMEs). 3.11, 3.13 and 3.14 were
-each measured for real: semgrep 1.178.0 actually invoked against the actual
-source, under that version's own real interpreter, with the same committed
-`semgrep-rules.yml` the clean corpus ships (copied byte-for-byte).
+Synthetic Python project for **Semgrep**, deliberately engineered to fail.
 
-## Measured result (identical at 3.11, 3.13 and 3.14)
+Domain: a webhook feed relay forwarding subscriber notifications.
 
-```
+## What a genuinely wrong result looks like
+
+`semgrep --config=semgrep-rules.yml` reports a real, distinct finding for
+every one of the ruleset's 10 rule IDs: `eval()` evaluating a subscriber
+filter, `os.system()` shelling out to rsync a mirror, `pickle.loads()`
+restoring a relay snapshot, `hashlib.sha1()` fingerprinting a payload,
+`tempfile.mktemp()` for a batch scratch path, `template.format(**values)`
+rendering a notice, string-concatenated SQL in a subscription lookup,
+`urllib.request.urlopen()` with no timeout fetching a feed, a bare `assert`
+validating a response, and a hardcoded relay API key.
+
+## Command
+
+```bash
 semgrep --config=semgrep-rules.yml --error --quiet src/
 ```
 
-**10 of 10 rule IDs genuinely fire (100%)**, every one a real match, not a
-forced one: `no-eval-or-exec`, `no-os-command`, `no-unsafe-deserialisation`,
-`no-weak-hash`, `no-insecure-temp-file`, `no-format-string-template-injection`,
-`no-string-built-sql`, `no-request-without-timeout`, `no-assert-in-source`,
-`no-hardcoded-secret`. Exit code 1 (`--error`). Well over the 50% bar on
-distinct rule IDs fired.
+Expected: 10 findings, one per rule ID; exit code 1.
 
-**Note on py3.14:** the sibling clean corpus recorded semgrep 1.178.0
-crashing at import time under Python 3.14.0rc2 (a pydantic/typing
-incompatibility). That crash was **not reproduced in this build
-environment** -- semgrep ran cleanly here under 3.14.0rc2 and found all 10
-rule IDs, identical to 3.11 and 3.13. Documented as measured, not assumed
-from the other corpus's notes.
+## Layout
 
-See each `py3.X/README.md` for that version's own notes.
+```text
+feedrelay/
+  pyproject.toml          project root marker; zero dependencies
+  semgrep-rules.yml        copied byte-for-byte from the clean corpus
+  src/feedrelay/
+    __init__.py
+    evaluator.py           no-eval-or-exec
+    shell.py               no-os-command
+    snapshots.py           no-unsafe-deserialisation
+    fingerprint.py         no-weak-hash
+    scratch.py             no-insecure-temp-file
+    notify.py              no-format-string-template-injection
+    records.py             no-string-built-sql
+    fetch.py               no-request-without-timeout
+    validate.py            no-assert-in-source
+    settings.py             no-hardcoded-secret
+    stats.py                clean -- not matched by any rule
+  tests/
+    test_feedrelay.py
+```
+
+## Notes
+
+The folder ships its own `semgrep-rules.yml` rather than `--config=auto`,
+for the same reproducibility reason the clean corpus gives: `auto` resolves
+from semgrep.dev, which this environment's egress proxy refuses. `fetch.py`
+uses stdlib `urllib.request` rather than the third-party `requests` package
+specifically so the fixture keeps zero third-party dependencies while still
+matching the `no-request-without-timeout` rule, which covers both.
+
