@@ -1,38 +1,54 @@
 # Trivy
 
-Boundary-version matrix for **Trivy** -- the deliberate inverse of
-`Python-Tools-Clean`'s `Trivy` folder. Trivy is a standalone binary and,
-exactly as in the clean corpus, its release host is refused at this
-environment's egress proxy: **NOT INSTALLED at every version**, carried
-forward unchanged.
+**py3.13 boundary variant -- NOT INSTALLED.** Same binary-egress block as
+py3.11. pip-audit stand-in measured under Python 3.13.13: 51 known
+vulnerabilities across 3 of 4 pinned packages, identical to py3.11.
 
-| Version | Status |
-|---|---|
-| py3.6 | CODE-ONLY (not run against a live interpreter) |
-| py3.7 | CODE-ONLY (not run against a live interpreter) |
-| py3.11 | NOT INSTALLED |
-| py3.13 | NOT INSTALLED |
-| py3.14 | NOT INSTALLED |
+Synthetic Python project for **Trivy**, deliberately engineered to fail.
 
-Same binary-egress block as the clean corpus's own Trivy folder. Mirroring
-the clean corpus's own cross-reference (there, pip-audit stood in to confirm
-a zero-dependency claim), **pip-audit stands in here too**, but inverted: it
-was actually run against this folder's own pinned, vulnerable
-`requirements.txt` and found a real, non-trivial result -- the same evidence
-Trivy's own `fs --scanners vuln` would be expected to surface.
+Domain: shipping route distance and cost estimation.
 
-## Stand-in result (pip-audit, identical at 3.11/3.13/3.14)
+## What a genuinely wrong result looks like
 
-```
-pip-audit --requirement requirements.txt --strict
+No live Trivy binary in this environment (egress-blocked, same as the clean
+corpus). Standing in with pip-audit against the same pinned
+`requirements.txt`: real advisories against a majority of the declared
+dependencies, not a placeholder CVE.
+
+## Command
+
+```bash
+trivy fs --scanners vuln,secret --exit-code 1 .
 ```
 
-**Found 51 known vulnerabilities in 3 packages.** `requirements.txt` pins
-`Flask==0.12`, `Werkzeug==0.15.3`, `urllib3==1.24.1` and `itsdangerous==0.24`
--- **3 of 4 pinned packages (75%)** carry a real reported advisory (Flask,
-Werkzeug and urllib3 all do; `itsdangerous==0.24` resolved with none found,
-which is why the folder reports 75% rather than 100%). Exit code 1.
+Expected (when a real binary is available): non-zero `Total:` vulnerability
+count. Measured here instead with the stand-in below.
 
-Re-run the real `trivy` binary before treating this folder as proven: a
-stand-in is evidence, not proof -- the same caveat the clean corpus states
-for its own (negative) Trivy result.
+## Layout
+
+```text
+cargoroute/
+  pyproject.toml      project root marker; declares the same 4 pins
+  src/cargoroute/
+    __init__.py
+    legs.py              RouteLeg, total_distance
+    pricing.py            estimate_cost
+  tests/
+    test_cargoroute.py
+  requirements.txt
+```
+
+## Notes
+
+Deliberately old, real pins rather than a zero-dependency manifest:
+`Flask==0.12`, `Werkzeug==0.15.3`, `urllib3==1.24.1`, `itsdangerous==0.24`.
+This is the inverse of the clean corpus's own zero-dependency Trivy folder,
+which exists to be found clean; this folder exists to be found wrong. Trivy
+is a standalone binary and its release host is refused at this
+environment's egress proxy, so it was NOT invoked here; the vulnerable
+dependency claim was verified instead with pip-audit, which reports 51 real
+advisories across 3 of the 4 pins. Treat the Trivy result as unproven until
+the binary runs. The source itself does not import any of the pinned
+packages, so the test suite is unaffected by which versions happen to be
+installed locally.
+
