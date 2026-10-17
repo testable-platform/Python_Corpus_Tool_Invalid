@@ -1,36 +1,53 @@
 # pylint
 
-Boundary-version matrix for **pylint**, inverted: the `Python-Tools-Invalid`
-counterpart to Clean's `pylint` folder. Where Clean's fixture scores
-10.00/10, this one is engineered so the real, printed score drops well below
-half. Each `py3.X/` subfolder is a complete, independent project; see its
-own README for the exact command and the real measured result. No
-`# pylint: disable` comment appears anywhere -- every message below is a
-real, unsuppressed finding.
+**py3.7 boundary variant -- code-only.** No Python 3.7 interpreter exists in the available build environments. This source is verified, not asserted, to be valid here: `ast.parse(..., feature_version=(3,7))` passes, and this folder's own pytest suite runs unmodified and green under an available interpreter -- no mechanical downgrade was needed, since this fixture never uses builtin generic subscripting, `dataclasses`, or `from __future__ import annotations` in the first place. It was not run against the real tool listed below; the command and result shown are what 3.11/3.13/3.14 actually measured, reproduced here for reference only.
 
-| Version | Status |
-|---|---|
-| py3.6 | CODE-ONLY (not run against a live interpreter) |
-| py3.7 | CODE-ONLY (not run against a live interpreter) |
-| py3.11 | MEASURED WRONG |
-| py3.13 | MEASURED WRONG |
-| py3.14 | MEASURED WRONG |
+Synthetic Python project deliberately broken for **pylint**.
 
-## What "wrong" means here
+Domain: a helpdesk ticket queue and routing module.
 
-`pylint src/deskqueue --fail-under=10` against `src/deskqueue/`: **the
-printed score is 4.86/10**, comfortably under the 5.00 bar (and under
-Clean's own 10.00/10). The source is identical across all five version
-folders: none of pylint's checks here are Python-version-sensitive.
+## What a failing result looks like
 
-## Why it is wrong
+```text
+Your code has been rated at 4.86/10
+```
 
-Docstrings are omitted everywhere (deliberately -- this is the one hygiene
-rule the brief calls out as fair game for pylint's own fixture) alongside a
-pile of genuine, unsuppressed findings: unused imports and variables, a bare
-`except:`, a too-broad `except Exception`, non-`snake_case` names, a
-function with 7 arguments and 15 branches, `eval()` use, an unclosed `open()`
-with no encoding, a `global` statement, a mutable default argument, and a
-function redefined later in the same module (pylint's own `function-redefined`
-error). 34 messages total -- 1 error, 11 warning, 4 refactor, 18 convention --
-over 74 analysed statements is what pulls the score under half.
+34 messages total -- **1 error, 11 warning, 4 refactor, 18 convention** --
+over 74 analysed statements. No `# pylint: disable` appears anywhere.
+
+Highlights: `missing-module/class/function-docstring` everywhere (no
+docstrings at all, the one hygiene rule deliberately broken here),
+`unused-import` (`json`, `os`), `unused-variable` (x3), `invalid-name`
+(`Pop`, `routeTicket`, `runExpr`), `broad-exception-caught`, `bare-except`,
+`too-many-arguments`/`too-many-positional-arguments`/`too-many-branches` on
+a 7-argument, 15-branch function, `eval-used`, `unspecified-encoding` +
+`consider-using-with` on an unclosed `open()`, `global-statement`,
+`dangerous-default-value`, and `function-redefined` (the one `error`-level
+finding, from a second `def score(...)` later in the same module).
+
+## Command
+
+```bash
+pylint src/deskqueue --fail-under=10
+```
+
+Tool version used: `pylint 4.1.1` (astroid 4.3.3).
+
+## Layout
+
+```text
+deskqueue/
+  pyproject.toml      project root marker; zero dependencies
+  src/deskqueue/
+    __init__.py
+    tickets.py
+    utils.py
+  tests/
+    test_deskqueue.py
+```
+
+## Notes
+
+`--fail-under=10` is what turns 4.86/10 into a nonzero exit code. Every
+finding above is real and unsuppressed; nothing is silenced with a disable
+comment.
