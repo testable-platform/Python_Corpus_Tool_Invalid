@@ -1,70 +1,58 @@
 # sys.settrace driver (stdlib)
 
-Boundary-version matrix for **sys.settrace driver (stdlib)**, inverse
-corpus: each `py3.X/` folder is a complete, independent project engineered
-to make the real stdlib tracer report a genuinely, measurably wrong
-(majority-unexercised) statement ratio -- not an assertion, not a mocked
-number.
+**py3.7 boundary variant -- code-only.** No Python 3.7 interpreter exists
+in the available build environments. This source (both `src/evrouter`
+and `driver.py`) is verified, not asserted: `ast.parse(...,
+feature_version=(3, 7))` passes on every file, and this folder's own
+pytest suite runs unmodified and green under an available interpreter, and
+`driver.py` itself was run under an available interpreter from this
+folder and reproduced the same traced ratio as py3.11/py3.13/py3.14. It was
+not run against a real py3.7 interpreter, because none exists.
 
-| Version | Status |
-|---|---|
-| py3.6 | CODE-ONLY (not run against a live interpreter) |
-| py3.7 | CODE-ONLY (not run against a live interpreter) |
-| py3.11 | MEASURED WRONG -- `evrouter: 38% (22/57 statements)` |
-| py3.13 | MEASURED WRONG -- `evrouter: 38% (22/57 statements)` |
-| py3.14 | MEASURED WRONG -- `evrouter: 38% (22/57 statements)` |
+`driver.py` here is mechanically downgraded the same way Clean's corpus
+downgraded this file: the two builtin-generic annotations (`dict[str,
+set[int]]`, `set[int]`) are rewritten to `typing.Dict`/`typing.Set`.
+`from __future__ import annotations` is kept, since it is valid on 3.7+ and defers the annotations anyway.
+`src/evrouter/*.py` needed no change at all: no builtin generics,
+`dataclasses` or future-annotations import appear there.
 
-## What "wrong" means here
+Synthetic, deliberately-wrong Python project for **sys.settrace driver
+(stdlib)**.
 
-The tracer's own logic (`driver.py`) is **unchanged** from a clean-by-design
-driver: it still registers a real `sys.settrace` line hook, still compares
-against `co_lines()`, still reports the hit/found ratio honestly. Only the
-fixture's shape changed: `exercise()` now drives a narrow slice of the
-package (one known event route, one known state transition) instead of
-every function, so most of `policy.py`, `router.py` and `transitions.py`
-never executes a single line while the driver is tracing.
+Domain: a small event router, retry policy and state-transition table,
+traced by a stdlib coverage driver.
 
-## Command
+## What a wrong result would look like
 
-```bash
-python driver.py
-```
-
-(the folder also has a `[tool.pytest.ini_options]` entry so `python -m
-pytest -q` runs the real, separate test suite -- that suite passes in full;
-it is not what `driver.py` traces, and its passing is not evidence of
-coverage.)
-
-Real measured output (identical across py3.11 / py3.13 / py3.14):
+`exercise()` only drives one event route and one state transition, leaving
+most of `policy.py`, `router.py` and `transitions.py` untraced. Running
+the downgraded `driver.py` under an available interpreter (sanity check,
+not a 3.3.7 measurement) reproduces the same real ratio as every
+live-measured version:
 
 ```text
-policy.py: missing lines [1, 3, 4, 7, 9, 10, 11, 12, 15, 17, 18, 19, 22, 24, 25, 26, 27, 28]
-router.py: missing lines [10, 11, 12, 17, 22, 23, 24, 25, 26, 27, 28, 29, 30]
-transitions.py: missing lines [19, 24, 25, 26]
 evrouter: 38% (22/57 statements)
 ```
 
 **38% < 50%.**
 
+## Command (not run against a real 3.3.7 interpreter)
+
+```bash
+python driver.py
+```
+
 ## Layout
 
 ```text
 evrouter/
-  pyproject.toml      project root marker; zero dependencies
+  pyproject.toml
   src/evrouter/
     __init__.py
-    router.py          event -> handler routing (most branches untraced)
-    policy.py           retry/backoff policy (entirely untraced)
-    transitions.py       a small state-transition table
+    router.py
+    policy.py
+    transitions.py
   tests/
-    test_evrouter.py     a real, full pytest suite -- separate from the trace
-  driver.py              the stdlib sys.settrace tracer, unchanged logic
+    test_evrouter.py
+  driver.py            downgraded: typing.Dict/Set in place of dict/set
 ```
-
-## Notes
-
-`driver.py` is byte-identical in its tracer logic across py3.11/13/14. The
-py3.6/py3.7 copies rewrite only the two builtin-generic annotations
-(`dict`/`set` -> `typing.Dict`/`Set`) the same way Clean's corpus did,
-leaving `exercise()` and the comparison logic untouched -- see each
-version's own README.
