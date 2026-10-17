@@ -1,35 +1,52 @@
 # complexipy
 
-Boundary-version matrix for **complexipy**, inverted: the
-`Python-Tools-Invalid` counterpart to Clean's `complexipy` folder. Where
-Clean's fixture keeps every function within budget, this one is engineered
-so most functions blow past it. Each `py3.X/` subfolder is a complete,
-independent project; see its own README for the exact command and the real
-measured result.
+**py3.7 boundary variant -- code-only.** No Python 3.7 interpreter exists in the available build environments. This source is verified, not asserted, to be valid here: `ast.parse(..., feature_version=(3,7))` passes, and this folder's own pytest suite runs unmodified and green under an available interpreter -- no mechanical downgrade was needed, since this fixture never uses builtin generic subscripting, `dataclasses`, or `from __future__ import annotations` in the first place. It was not run against the real tool listed below; the command and result shown are what 3.11/3.13/3.14 actually measured, reproduced here for reference only.
 
-| Version | Status |
-|---|---|
-| py3.6 | CODE-ONLY (not run against a live interpreter) |
-| py3.7 | CODE-ONLY (not run against a live interpreter) |
-| py3.11 | MEASURED WRONG |
-| py3.13 | MEASURED WRONG |
-| py3.14 | MEASURED WRONG |
+Synthetic Python project deliberately broken for **complexipy**.
 
-## What "wrong" means here
+Domain: warehouse replenishment planning by nested, boolean-heavy checks.
 
-`complexipy src/ --max-complexity-allowed 8` against `src/restockplan/`:
-**3 of the 4 functions found exceed cognitive complexity 8 (75%)** --
-`qualifies_for_rush` scores 21, `decide_order_quantity` scores 34, and
-`safety_stock_tier` scores 27, all printed `FAILED`. Only `lookup_unit_cost`
-(a flat dict lookup, score 0) `PASSED`. The source is identical across all
-five version folders: cognitive-complexity scoring has no Python-version
-sensitivity.
+## What a failing result looks like
 
-## Why it is wrong
+```text
+src/restockplan/plan.py
+    qualifies_for_rush 21  FAILED
+    decide_order_quantity 34  FAILED
 
-Each of the three failing functions nests its decision 3-4 levels deep (stock
-level inside season inside lead time inside backorder state, for example)
-instead of flattening the checks, and several of the nested conditions are
-themselves compound (`and`/`or`) rather than single comparisons -- both of
-which are exactly the increments cognitive-complexity scoring is built to
-punish.
+src/restockplan/tiers.py
+    lookup_unit_cost 0  PASSED
+    safety_stock_tier 27  FAILED
+```
+
+**3 of 4 functions FAIL (75%)** against the budget of 8. Only
+`lookup_unit_cost`, a flat dict lookup, scores 0.
+
+## Command
+
+```bash
+complexipy src/ --max-complexity-allowed 8
+```
+
+Tool version used: `complexipy 8.0.1`.
+
+## Layout
+
+```text
+restockplan/
+  pyproject.toml      project root marker; zero dependencies
+  src/restockplan/
+    __init__.py
+    plan.py
+    tiers.py
+  tests/
+    test_restockplan.py
+```
+
+## Notes
+
+`qualifies_for_rush`, `decide_order_quantity` and `safety_stock_tier` each
+nest 3-4 levels deep (stock level inside season inside lead time inside
+backorder state, for example), with several nested conditions themselves
+compound (`and`/`or`) rather than single comparisons -- both nesting depth
+and boolean-sequence count are exactly what cognitive-complexity scoring
+charges for.
