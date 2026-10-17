@@ -1,46 +1,80 @@
 # Beniget
 
-Boundary-version matrix for **Beniget**, the deliberate inverse of the Clean
-corpus's `seatplan`: 2 earliest supported versions, 1 middle, 2 end/latest --
-matching the Clean corpus's own version-coverage methodology. Each `py3.X/`
-subfolder is a complete, independent project; see its own README for exactly
-what's wrong and the command.
+**py3.14 boundary variant.** MEASURED WRONG: beniget's own def-use analysis genuinely finds a majority of this package's identifier uses unbound.
 
-| Version | Status |
-|---|---|
-| py3.6 | CODE-ONLY (not run against a live interpreter) |
-| py3.7 | CODE-ONLY (not run against a live interpreter) |
-| py3.11 | MEASURED WRONG -- 5 of 9 examined identifier uses were unbound (55%) |
-| py3.13 | MEASURED WRONG -- 5 of 9 examined identifier uses were unbound (55%) |
-| py3.14 | MEASURED WRONG -- 5 of 9 examined identifier uses were unbound (55%) |
+Synthetic, invalid-by-design Python project for **Beniget** -- the deliberate inverse of the Clean corpus's `seatplan`.
 
-3.6 and 3.7 are code-only (see their own READMEs). 3.11, 3.13 and 3.14 were
-each measured for real against the actual installed `beniget` package
-(0.5.0, paired with `gast` 0.7.0), with identical source and identical
-results.
+Domain: elevator dispatch bookkeeping for a single shaft.
 
-## What's wrong here
+## What's wrong here, and why it's genuine
 
-An elevator dispatch bookkeeping package (`liftqueue`) where 5 of the 9
-non-builtin identifier uses beniget's own `DefUseChains` is asked to
-resolve genuinely have no live definition: a name read after `del`, a name
-read after the `except ... as name:` clause that bound it ends (Python
-itself deletes that binding there), a list comprehension's loop variable
-read outside the comprehension, and a chained pair of both. Every one of
-these is a real bug, not a contrived confound -- each affected function
-raises (`UnboundLocalError` or `NameError`) the moment it is actually
-called, which the test suite documents with `pytest.raises`. No PEP 695
-syntax appears anywhere, so none of this is beniget 0.5.0's known
-`gast.TypeVar` blind spot; it is genuine unbound-identifier detection,
-exactly as the task calls for.
+Clean's version of this folder has beniget resolve every identifier -- no
+unbound names, by construction. This one instead reads five names that
+beniget's own `DefUseChains.compute_defs` genuinely cannot resolve, each a
+real scoping defect rather than a confound:
 
-`driver.py` does **not** reuse Clean's own check (`collector._undefs` read
-after `.visit()` returns) unchanged: that attribute is a transient stack
-beniget's own For/While handling always pops back to empty before
-`.visit()` finishes, so it is `[]` whether the code is clean or riddled
-with unbound names -- reading it afterward cannot observe anything. This
-driver instead captures the real `W: unbound identifier ...` line beniget
-prints the moment it fails to resolve a name, which is beniget's own
-genuine, real diagnostic output, and counts the total number of non-builtin
-identifier uses in the package as the denominator, so the reported
-percentage is read directly off the same population beniget examines.
+* `record_request` reads `tag` after `del tag` removed its only binding.
+* `close_call` reads `fault` after the `except RuntimeError as fault:`
+  clause ends -- Python itself deletes that name at the end of the clause.
+* `tally_requests` reads `floor` outside the list comprehension that bound
+  it -- comprehension variables never leak into the enclosing scope in
+  Python 3.
+* `audit_trail` chains two such names: `cause` (another except-as read
+  after its clause) assigned to `first`, which is then also `del`-ed before
+  its own return.
+
+None of this is a false positive: every one of these functions really does
+raise (`UnboundLocalError` or `NameError`) the moment it is called, exactly
+as beniget's static analysis says it will -- the four tests document that
+directly with `pytest.raises`.
+
+## Command
+
+```bash
+python -m driver
+```
+
+Measured: **5 of 9 examined identifier uses were unbound (55%)**, exit 1.
+
+```text
+src/liftqueue/dispatch.py: W: unbound identifier 'tag' at <unknown>:20:11
+src/liftqueue/dispatch.py: W: unbound identifier 'fault' at <unknown>:29:11
+src/liftqueue/dispatch.py: W: unbound identifier 'floor' at <unknown>:35:11
+src/liftqueue/dispatch.py: W: unbound identifier 'cause' at <unknown>:44:12
+src/liftqueue/dispatch.py: W: unbound identifier 'first' at <unknown>:46:11
+5 unbound identifiers
+5 of 9 examined identifier uses were unbound (55%)
+```
+
+Tool versions: **beniget 0.5.0**, **gast 0.7.0** (interpreter: CPython 3.14.0rc2).
+
+No PEP 695 syntax appears anywhere in this folder -- the unbound identifiers
+above are genuine scoping defects, not the uncontrolled `gast.TypeVar`
+confound Clean's README warns about.
+
+## Layout
+
+```text
+liftqueue/
+  pyproject.toml      project root marker; zero dependencies
+  src/liftqueue/
+    __init__.py
+    dispatch.py         the four functions driver.py walks
+  tests/
+    test_dispatch.py     documents each function's real bug with pytest.raises
+  driver.py
+```
+
+## Notes
+
+Clean's own driver reads `collector._undefs` directly after `.visit()`
+completes. That attribute is a transient stack beniget's For/While handling
+pushes and always pops before `.visit()` returns (see `process_undefs` in
+beniget's source), so it is `[]` regardless of input -- checking it
+afterward cannot observe anything, clean or broken. This driver instead
+captures the real signal beniget itself emits: the `W: unbound identifier
+...` line `unbound_identifier` prints the moment `compute_defs` fails to
+resolve a name, which is genuine, real beniget output, not a separate,
+invented check. The denominator (9) is every non-builtin identifier load in
+the package, so the reported 55% is read directly off the same population
+beniget is asked to resolve.
