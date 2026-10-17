@@ -1,36 +1,37 @@
 # astroid
 
-Boundary-version matrix for **astroid**, the deliberate inverse of the Clean
-corpus's `shapebook`: 2 earliest supported versions, 1 middle, 2 end/latest --
-matching the Clean corpus's own version-coverage methodology. Each `py3.X/`
-subfolder is a complete, independent project; see its own README for exactly
-what's wrong and the command.
+**py3.7 boundary variant -- code-only.** No Python 3.7 interpreter exists in the available build environments (uv's python-build-standalone starts at 3.8). This source is verified, not asserted, to be valid here: `ast.parse(..., feature_version=(3,7))` passes, and this folder's own pytest suite runs unmodified and green under an available interpreter (all 5 tests pass). It was not run against the real tool.
 
-| Version | Status |
-|---|---|
-| py3.6 | CODE-ONLY (not run against a live interpreter) |
-| py3.7 | CODE-ONLY (not run against a live interpreter) |
-| py3.11 | MEASURED WRONG -- 4 of 6 examined names failed to resolve (66%) |
-| py3.13 | MEASURED WRONG -- 4 of 6 examined names failed to resolve (66%) |
-| py3.14 | MEASURED WRONG -- 4 of 6 examined names failed to resolve (66%) |
+Synthetic, invalid-by-design Python project for **astroid**.
 
-3.6 and 3.7 are code-only (see their own READMEs). 3.11, 3.13 and 3.14 were
-each measured for real against the actual installed `astroid` package
-(4.3.3), with identical source and identical results.
+Domain: a warehouse dispatch ledger.
 
-## What's wrong here
+## What this package is designed to make astroid get wrong
 
-A warehouse dispatch ledger package (`dispatch`) where 4 of the 6 non-builtin
-identifiers astroid's own `Name.lookup()` is asked to resolve genuinely fail
-to resolve: two names installed into a module's namespace by
-`globals().update(...)` inside a wildcard-imported module, one bound only by
-a module-level `exec("delta = 7")` string, and one read after a `del` that
-genuinely removes its binding. All four run correctly at call time (all 5
-tests pass); only astroid's static picture of each is wrong -- the exact
-inverse of Clean's rule "no dynamic dispatch, star imports, exec,
-metaclasses or monkey-patching, so astroid resolves every name."
+Clean's version of this folder has astroid infer every name. This one instead has four of its six examined `Name` nodes resolve to nothing, under a genuine astroid analysis: two names only bound through a wildcard import of a module that installs attributes with `globals().update(...)`, one bound only inside a module-level `exec` string, and one `del`-ed before the return that reads it. On 3.13/3.14, the same source was measured for real: **4 of 6 examined names failed to resolve (66%)**. See `py3.13/README.md` for the exact command and output; this folder's source under `src/` is byte-for-byte identical, so that result applies here too in substance.
 
-`driver.py` reuses Clean's own two checks (`Name.lookup()`,
-`ClassDef.getattr()`) unchanged, extended only to report the total number of
-names examined alongside the failures, so the 66% is read directly off the
-same population the pass/fail check walks.
+## Command
+
+```bash
+python -m driver
+```
+
+(Not run on this version -- see above.)
+
+## Layout
+
+```text
+dispatch/
+  pyproject.toml      project root marker; zero dependencies
+  src/dispatch/
+    __init__.py
+    _dynamic.py
+    ledger.py
+  tests/
+    test_ledger.py
+  driver.py
+```
+
+## Notes
+
+`driver.py`'s builtin generic subscripting (`list[str]`, `list[nodes.Name]`, needs 3.9+) was rewritten to `typing.List[...]`; `from __future__ import annotations` stays, since 3.7 clears that floor. Nothing under `src/` or `tests/` changed -- the ledger package uses no type annotations, no `dataclasses`, and no builtin generics to begin with.
