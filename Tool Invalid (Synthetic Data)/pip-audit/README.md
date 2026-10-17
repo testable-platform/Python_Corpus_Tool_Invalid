@@ -1,37 +1,51 @@
 # pip-audit
 
-Boundary-version matrix for **pip-audit** -- the deliberate inverse of
-`Python-Tools-Clean`'s `pip-audit` folder. Clean declared zero dependencies
-by construction; this folder inverts that on purpose, pinning real,
-old, genuinely-CVE'd package versions as its planted defect.
+**py3.11 boundary variant -- measured.** pip-audit 2.10.1 actually installed
+and invoked against this folder, under Python 3.11.15. Result: 74 known
+vulnerabilities across 7 resolved packages (5 of 5 pinned flagged).
 
-| Version | Status |
-|---|---|
-| py3.6 | CODE-ONLY (not run against a live interpreter) |
-| py3.7 | CODE-ONLY (not run against a live interpreter) |
-| py3.11 | MEASURED FINDING |
-| py3.13 | MEASURED FINDING |
-| py3.14 | MEASURED FINDING |
+Synthetic Python project for **pip-audit**, deliberately engineered to fail.
 
-3.6 and 3.7 are code-only (see their own READMEs). 3.11, 3.13 and 3.14 were
-each measured for real: pip-audit 2.10.1 actually resolved and audited
-`requirements.txt` against the live PyPI advisory feed, under that version's
-own real interpreter.
+Domain: a categorised personal expense ledger.
 
-## Measured result (identical at 3.11, 3.13 and 3.14)
+## What a genuinely wrong result looks like
 
-```
+`pip-audit --requirement requirements.txt --strict` reports real advisories
+against a majority of the pinned dependencies -- not a placeholder CVE, a
+genuine PyPI/OSV advisory resolved live against each pinned version.
+
+## Command
+
+```bash
 pip-audit --requirement requirements.txt --strict
 ```
 
-**Found 74 known vulnerabilities in 7 packages.** The 5 pins in
-`requirements.txt` are `requests==2.19.1`, `PyYAML==5.3`, `Jinja2==2.10`,
-`cryptography==2.3` and `click==8.1.7` -- **all 5 of 5 (100%)** carry at
-least one real reported advisory (`PYSEC-2023-74`, `PYSEC-2020-96`,
-`PYSEC-2019-217`, `PYSEC-2026-1283` and `PYSEC-2026-2132` among them). The
-dependency resolver also pulled in `idna` and `urllib3` transitively, and
-both of those came back flagged too (7 of 7 resolved packages total).
-`--strict` makes the command fail outright (exit code 1) rather than pass
-quietly on anything it couldn't resolve.
+Expected: `Found 74 known vulnerabilities in 7 packages`; exit code 1.
 
-See each `py3.X/README.md` for that version's own notes.
+## Layout
+
+```text
+ledgerbook/
+  pyproject.toml      project root marker; declares the same 5 pins
+  src/ledgerbook/
+    __init__.py
+    entries.py          LedgerEntry, total_for_category
+    reporting.py         format_summary
+  tests/
+    test_ledgerbook.py
+  requirements.txt
+```
+
+## Notes
+
+Deliberately old, real pins rather than pins that happen to be vulnerable
+today by accident: `requests==2.19.1`, `PyYAML==5.3`, `Jinja2==2.10`,
+`cryptography==2.3`, `click==8.1.7`. This is the inverse of the clean
+corpus's own zero-dependency pip-audit folder, which exists to be found
+clean; this folder exists to be found wrong. The source itself (`entries.py`,
+`reporting.py`) does not import any of the pinned packages -- same
+decoupling the clean corpus uses between its declared dependency set and its
+actual imports -- so the test suite runs unmodified regardless of which
+versions of these packages happen to be installed locally. `--strict` makes
+an audit that could not resolve something fail rather than pass quietly.
+
