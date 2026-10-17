@@ -1,37 +1,54 @@
 # Radon
 
-Boundary-version matrix for **Radon**, inverted: this is the
-`Python-Tools-Invalid` counterpart to the Clean corpus's `Radon` folder.
-Where Clean's fixture is engineered so every block ranks A, this one is
-engineered so most blocks do not. Each `py3.X/` subfolder is a complete,
-independent project; see its own README for the exact command and the real
-measured result.
+**py3.11 boundary variant -- measured.** A real Python 3.11 interpreter and
+this tool's own current release were both actually installed and invoked
+against this folder in the build environment; the result below is real, not
+asserted.
 
-| Version | Status |
-|---|---|
-| py3.6 | CODE-ONLY (not run against a live interpreter) |
-| py3.7 | CODE-ONLY (not run against a live interpreter) |
-| py3.11 | MEASURED WRONG |
-| py3.13 | MEASURED WRONG |
-| py3.14 | MEASURED WRONG |
+Synthetic Python project deliberately broken for **Radon**.
 
-## What "wrong" means here
+Domain: support-ticket routing by nested signal checks.
 
-`radon cc src/ -s` (no `-n` filter, so every block prints) against
-`src/triageroute/`: **3 of the 4 scored blocks rank C or worse (75%)** --
-`classify_ticket` and `risk_score` both rank **D**, `escalate_check` ranks
-**C**. Only `normalize_tier` stays at **A**. The source is the same across
-3.11/3.13/3.14 (and, code-only, 3.6/3.7): nothing about cyclomatic-complexity
-counting is version-sensitive, so one fixture serves all five.
+## What a failing result looks like
 
-## Why it is wrong
+`radon cc src/ -s` prints every block's rank (no `-n` filter). **3 of 4
+blocks rank C or worse (75%)**:
 
-`classify_ticket` and `escalate_check` (in `router.py`) and `risk_score` (in
-`scoring.py`) each resolve a routing or scoring decision by walking every
-input signal (category, priority, keyword membership, SLA-breach flag,
-customer tier, retry count) through its own nested `if`/`elif` chain, with
-compound `and`/`or` conditions at several of the nesting levels, instead of
-through a flat lookup table. Each nested branch and each boolean operator is
-its own decision point, so the cyclomatic complexity accumulates exactly the
-way Clean's own `payscale` fixture (its "Notes" section) says a bracket-style
-chain of `elif` does -- just leaned into instead of avoided.
+```text
+src/triageroute/router.py
+    F 9:0 classify_ticket - D (25)
+    F 56:0 escalate_check - C (13)
+src/triageroute/scoring.py
+    F 4:0 risk_score - D (22)
+    F 42:0 normalize_tier - A (2)
+```
+
+Only `normalize_tier` (a one-line dict-membership check) stays at A.
+
+## Command
+
+```bash
+radon cc src/ -s
+```
+
+Tool version used: `radon 6.0.1`.
+
+## Layout
+
+```text
+triageroute/
+  pyproject.toml      project root marker; zero dependencies
+  src/triageroute/
+    __init__.py
+    router.py
+    scoring.py
+  tests/
+    test_triageroute.py
+```
+
+## Notes
+
+Every signal (category, priority, keyword membership, SLA-breach state,
+customer tier, retry count) gets its own nested `if`/`elif`, several with
+compound `and`/`or` conditions, instead of a lookup table -- the opposite of
+the bracket-table trick Clean's own `payscale` fixture uses to stay flat.
