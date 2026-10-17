@@ -1,35 +1,49 @@
 # Pymcdc
 
-Boundary-version matrix for **Pymcdc**, the deliberate inverse of the Clean
-corpus's `eligibility`: 2 earliest supported versions, 1 middle, 2
-end/latest -- matching the Clean corpus's own version-coverage methodology.
-Each `py3.X/` subfolder is a complete, independent project; see its own
-README for exactly what's wrong and the command.
+**py3.6 boundary variant -- code-only.** No Python 3.6 interpreter exists in the available build environments (uv's python-build-standalone starts at 3.8). This source is verified, not asserted, to be valid here: `ast.parse(..., feature_version=(3,6))` passes, and this folder's own pytest suite runs unmodified and green under an available interpreter (all 3 tests pass -- the decision function is correct; the gap is in the test cases' coverage, not their assertions). It was not run against the real mechanism.
 
-| Version | Status |
-|---|---|
-| py3.6 | CODE-ONLY (not run against a live interpreter) |
-| py3.7 | CODE-ONLY (not run against a live interpreter) |
-| py3.11 | MEASURED WRONG -- MC/DC 33% |
-| py3.13 | MEASURED WRONG -- MC/DC 33% |
-| py3.14 | MEASURED WRONG -- MC/DC 33% |
+Synthetic, invalid-by-design Python project for **Pymcdc**.
 
-3.6 and 3.7 are code-only (see their own READMEs). 3.11, 3.13 and 3.14 were
-each measured for real using the corpus's own hand-written, stdlib-based
-MC/DC scoring mechanism (there is no PyPI package named `pymcdc`), with
-identical source and identical results.
+Domain: a three-condition irrigation decision.
 
-## What's wrong here
+## What this package is designed to make the MC/DC check get wrong
 
-A three-condition irrigation decision (`moisture_low and (forecast_dry or
-override_on)`) exercised by only three test cases instead of the four full
-MC/DC needs. The three cases isolate `moisture_low` cleanly, but
-`forecast_dry` and `override_on` always change together whenever either
-changes, so neither ever gets a clean independence pair. `driver.py` reuses
-Clean's exact mechanism unchanged (`has_independence_pair`: two cases
-differing in one condition alone, with differing outcomes) over this
-project's own condition/case set, and it genuinely reports **MC/DC 33%** --
-only one of three conditions covered, not the eight exhaustive truth-table
-cases and not the four full-MC/DC cases. All three tests pass: the defect
-is in the test suite's choice of cases, not in the decision logic or in a
-broken checker.
+Clean's version of this folder has four test cases giving each of the
+three conditions its own independence pair -- full MC/DC. This one ships
+only three cases, chosen so `forecast_dry` and `override_on` always change
+together, so neither ever gets a clean pair on its own. On 3.13/3.14, the
+identical mechanism measured for real: **MC/DC 33%** (only `moisture_low`
+covered). See `py3.13/README.md` for the full breakdown and output; the
+decision logic and the three test cases are identical here.
+
+## Command
+
+```bash
+python -m driver
+```
+
+(Not run on this version -- see above.)
+
+## Layout
+
+```text
+irrigation/
+  pyproject.toml      project root marker; zero dependencies
+  src/irrigation/
+    __init__.py
+    decision.py
+  tests/
+    test_decision.py
+  driver.py
+```
+
+## Notes
+
+Two mechanical changes for this version: the `@dataclass(frozen=True)`
+`FieldState` was rewritten to a plain class with an explicit `__init__`
+(audited: nothing in this folder compares, hashes, or introspects a
+`FieldState` instance via `dataclasses.fields`/`asdict`/`replace`, so a
+plain class is behavior-preserving -- proved by the unmodified test suite
+passing after the swap, not assumed); and `driver.py`'s `from __future__
+import annotations` (3.7+) was dropped, since it guarded no builtin generic
+subscripting that needed rewriting in turn.
