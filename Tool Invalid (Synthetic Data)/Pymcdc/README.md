@@ -1,35 +1,70 @@
 # Pymcdc
 
-Boundary-version matrix for **Pymcdc**, the deliberate inverse of the Clean
-corpus's `eligibility`: 2 earliest supported versions, 1 middle, 2
-end/latest -- matching the Clean corpus's own version-coverage methodology.
-Each `py3.X/` subfolder is a complete, independent project; see its own
-README for exactly what's wrong and the command.
+**py3.14 boundary variant.** MEASURED WRONG: the real MC/DC check this corpus's own driver performs genuinely reports well under half of the decision's conditions covered.
 
-| Version | Status |
-|---|---|
-| py3.6 | CODE-ONLY (not run against a live interpreter) |
-| py3.7 | CODE-ONLY (not run against a live interpreter) |
-| py3.11 | MEASURED WRONG -- MC/DC 33% |
-| py3.13 | MEASURED WRONG -- MC/DC 33% |
-| py3.14 | MEASURED WRONG -- MC/DC 33% |
+Synthetic, invalid-by-design Python project for **Pymcdc** -- the deliberate inverse of the Clean corpus's `eligibility`.
 
-3.6 and 3.7 are code-only (see their own READMEs). 3.11, 3.13 and 3.14 were
-each measured for real using the corpus's own hand-written, stdlib-based
-MC/DC scoring mechanism (there is no PyPI package named `pymcdc`), with
-identical source and identical results.
+Domain: a three-condition irrigation decision.
 
-## What's wrong here
+## What's wrong here, and why it's genuine
 
-A three-condition irrigation decision (`moisture_low and (forecast_dry or
-override_on)`) exercised by only three test cases instead of the four full
-MC/DC needs. The three cases isolate `moisture_low` cleanly, but
-`forecast_dry` and `override_on` always change together whenever either
-changes, so neither ever gets a clean independence pair. `driver.py` reuses
-Clean's exact mechanism unchanged (`has_independence_pair`: two cases
-differing in one condition alone, with differing outcomes) over this
-project's own condition/case set, and it genuinely reports **MC/DC 33%** --
-only one of three conditions covered, not the eight exhaustive truth-table
-cases and not the four full-MC/DC cases. All three tests pass: the defect
-is in the test suite's choice of cases, not in the decision logic or in a
-broken checker.
+Clean's version of this folder has four test cases chosen so each of the
+decision's three conditions gets its own independence pair -- two cases
+differing in exactly that one condition, with a differing outcome -- which
+is full MC/DC. This project keeps the exact same checking mechanism
+(`has_independence_pair`, unchanged from Clean's driver) but ships only
+**three** test cases, chosen so that `forecast_dry` and `override_on`
+always change together whenever either changes:
+
+```text
+moisture_low=True,  forecast_dry=True,  override_on=False  -> True
+moisture_low=False, forecast_dry=True,  override_on=False  -> False
+moisture_low=True,  forecast_dry=False, override_on=True   -> True
+```
+
+Case 1 vs. case 2 isolates `moisture_low` cleanly (the only other value,
+`forecast_dry`, stays fixed), so that condition gets its independence pair.
+But every pair that could test `forecast_dry` or `override_on` also changes
+the other condition at the same time, so neither ever gets a clean pair.
+This isn't a trick on the checker -- it's a real, common test-suite gap:
+three "plausible-looking" cases that happen to never isolate two of the
+three conditions.
+
+## Command
+
+```bash
+python -m driver
+```
+
+Measured: **MC/DC 33%**, exit 1.
+
+```text
+  moisture_low: covered
+  forecast_dry: UNCOVERED
+  override_on: UNCOVERED
+MC/DC 33%
+```
+
+Interpreter: CPython 3.14.0rc2 (Pymcdc has no PyPI package; this is the
+corpus's own hand-written, stdlib-based MC/DC scoring mechanism, run as-is
+from Clean's driver).
+
+## Layout
+
+```text
+irrigation/
+  pyproject.toml      project root marker; zero dependencies
+  src/irrigation/
+    __init__.py
+    decision.py          the decision driver.py checks
+  tests/
+    test_decision.py      the same three cases, all assertions pass
+  driver.py
+```
+
+## Notes
+
+All three tests pass -- the decision function itself is correct for every
+case exercised; the defect is entirely in the *test suite's* choice of
+cases, which is exactly what MC/DC is designed to catch and exactly what
+this project makes it catch.

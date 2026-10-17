@@ -1,32 +1,20 @@
 # Coverage.py
 
-Boundary-version matrix for **Coverage.py**, inverse corpus: each `py3.X/`
-folder is a complete, independent project engineered to make a *real*
-`coverage` run report a genuinely, measurably wrong (majority-uncovered)
-result -- not an assertion, not a mocked number.
+**py3.14 boundary variant -- measured.** A real Python 3.14 interpreter and
+this tool's own current release (coverage 7.16.2) were both actually
+installed and invoked against this folder in the build environment; the
+result below is real, not asserted.
 
-| Version | Status |
-|---|---|
-| py3.6 | CODE-ONLY (not run against a live interpreter) |
-| py3.7 | CODE-ONLY (not run against a live interpreter) |
-| py3.11 | MEASURED WRONG -- `coverage report`: **45%** (54/119 lines+branches) |
-| py3.13 | MEASURED WRONG -- `coverage report`: **45%** (54/119 lines+branches) |
-| py3.14 | MEASURED WRONG -- `coverage report`: **45%** (54/119 lines+branches) |
+Synthetic, deliberately-wrong Python project for **Coverage.py**.
 
-Real `coverage` version used: **7.16.2**.
+Domain: progressive quantity discounts, shipping and coupons.
 
-## What "wrong" means here
+## What a wrong result looks like
 
-The source (`discountly`, a progressive-quantity-discount pricing package:
-tiers, shipping brackets, coupon codes, invoice total) is deliberately large
-relative to the test suite: the suite is a narrow, honest smoke test of one
-ordinary order through `total_cents`, plus one `is_order_valid` check. It
-never calls `tier_label`, `next_tier_threshold`, `tier_span`,
-`is_stackable`, `describe_savings`, most of the coupon branches, the
-region-rejection branch, or most weight/tier brackets. Both tests pass --
-this is a real, legitimate test suite that is simply far from exhaustive,
-the same kind of gap a hurried team ships and `--fail-under=100` is meant to
-catch.
+The test suite is a narrow, honest smoke test of one ordinary order. It
+never exercises most of the tier, shipping-region, weight-bracket or coupon
+branches, so real measured statement+branch coverage comes out well under
+50%.
 
 ## Command
 
@@ -34,11 +22,9 @@ catch.
 coverage run --branch -m pytest -q && coverage report -m --fail-under=100
 ```
 
-Real measured output (identical across py3.11 / py3.13 / py3.14, same
-source and same `coverage`/`pytest` versions in every venv):
+Real measured output:
 
 ```text
-..                                                                       [100%]
 2 passed in 0.01s
 Name                         Stmts   Miss Branch BrPart  Cover   Missing
 ------------------------------------------------------------------------
@@ -53,26 +39,19 @@ TOTAL                          119     53     64     12    45%
 Coverage failure: total of 45 is less than fail-under=100
 ```
 
-45% is well under the 50% threshold this corpus targets.
+**45% < 50%.**
 
 ## Layout
 
 ```text
 discountly/
-  pyproject.toml      project root marker; zero dependencies
+  pyproject.toml
   src/discountly/
     __init__.py
-    tiers.py           quantity discount tier lookup
-    shipping.py        weight/region/expedited shipping cost
-    coupons.py         flat and percent coupon codes
-    invoice.py         combines the above into one order total
+    tiers.py
+    shipping.py
+    coupons.py
+    invoice.py
   tests/
-    test_invoice.py    one ordinary order, nothing exotic
+    test_invoice.py
 ```
-
-## Notes
-
-The source uses no builtin generic subscripting, no `dataclasses`, and no
-`from __future__ import annotations` -- nothing in it has a floor above
-Python 3.6, so the same source and the same measured gap apply unchanged
-across every version folder, including the code-only 3.6/3.7 ones.
