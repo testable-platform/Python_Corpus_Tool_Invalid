@@ -1,36 +1,20 @@
 # SlipCover
 
-Boundary-version matrix for **SlipCover**, inverse corpus: each `py3.X/`
-folder is a complete, independent project engineered to make a *real*
-`slipcover` run report a genuinely, measurably wrong (majority-uncovered)
-result -- not an assertion, not a mocked number.
+**py3.11 boundary variant -- measured.** A real Python 3.11 interpreter and
+this tool's own current release (slipcover 1.1.0) were both actually
+installed and invoked against this folder in the build environment; the
+result below is real, not asserted.
 
-| Version | Status |
-|---|---|
-| py3.6 | CODE-ONLY (not run against a live interpreter) |
-| py3.7 | CODE-ONLY (not run against a live interpreter) |
-| py3.11 | MEASURED WRONG -- slipcover summary: **42%** (36/85 lines) |
-| py3.13 | MEASURED WRONG -- slipcover summary: **42%** (36/85 lines) |
-| py3.14 | MEASURED WRONG -- slipcover summary: **42%** (36/85 lines) |
+Synthetic, deliberately-wrong Python project for **SlipCover**.
 
-Real `slipcover` version used: **1.1.0**.
+Domain: plain-text tokenizing and a word-frequency histogram.
 
-## What "wrong" means here
+## What a wrong result looks like
 
-The source (`lexihist`, a plain-text tokenizer and word-frequency
-histogram) is deliberately larger than the test suite: the suite is a
-narrow, honest smoke test of `tokenize` on one punctuation-free sentence and
-`build_histogram` on a short literal list. It never calls anything in
-`stats.py` (0% -- `average_token_length`, `longest_token`,
-`vocabulary_richness`, `shortest_token` are all dead in the tests), never
-exercises punctuation-stripping, stopword filtering, `top_n`,
-`histogram_by_bucket` or `merge_histograms`. Both tests pass -- this is a
-real, legitimate suite that is simply far from exhaustive.
-
-SlipCover is an independent measurement engine from Coverage.py in this
-roster, so this folder deliberately holds different code from the
-Coverage.py folder -- agreement between two tools pointing at the same file
-would prove nothing.
+The test suite is a narrow, honest smoke test: one punctuation-free
+sentence tokenized, one literal list histogrammed. `stats.py` is entirely
+untested (0%), and most of `tokenize.py`'s punctuation/stopword handling
+and `histogram.py`'s bucketing/merging are never exercised.
 
 ## Command
 
@@ -38,7 +22,7 @@ would prove nothing.
 slipcover --source src -m pytest -q
 ```
 
-Real measured output (identical across py3.11 / py3.13 / py3.14):
+Real measured output:
 
 ```text
 2 passed, 1 warning in 0.01s
@@ -53,25 +37,18 @@ src/lexihist/tokenize.py         29          9        69  13, 15, 26, 41-46
 (summary)                        85         49        42
 ```
 
-42% is well under the 50% threshold this corpus targets.
+**42% < 50%.**
 
 ## Layout
 
 ```text
 lexihist/
-  pyproject.toml      project root marker; zero dependencies
+  pyproject.toml
   src/lexihist/
     __init__.py
-    tokenize.py        splitting text into normalised tokens
-    histogram.py        counting and bucketing token frequency
-    stats.py             length/vocabulary summary statistics (entirely untested)
+    tokenize.py
+    histogram.py
+    stats.py
   tests/
-    test_basic.py        one plain sentence, one literal histogram
+    test_basic.py
 ```
-
-## Notes
-
-The source uses no builtin generic subscripting, no `dataclasses`, and no
-`from __future__ import annotations` -- nothing in it has a floor above
-Python 3.6, so the same source and the same measured gap apply unchanged
-across every version folder, including the code-only 3.6/3.7 ones.
